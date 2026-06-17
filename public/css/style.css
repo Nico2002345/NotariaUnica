@@ -1,0 +1,163 @@
+:root {
+  --primary: #1a3a5c;
+  --primary-light: #2d6a9f;
+  --accent: #c8a951;
+  --sidebar-bg: #12273d;
+  --sidebar-width: 220px;
+  --sidebar-text: #adb5bd;
+}
+
+/* ===== LAYOUT ===== */
+body { background: #f0f2f5; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+.sidebar {
+  width: var(--sidebar-width);
+  min-height: calc(100vh - 56px);
+  background: var(--sidebar-bg);
+  flex-shrink: 0;
+}
+
+.sidebar .nav-link {
+  color: var(--sidebar-text);
+  border-radius: 8px;
+  margin-bottom: 2px;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+.sidebar .nav-link:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.sidebar .nav-link.active { color: #fff; background: var(--primary-light); }
+
+.main-content { min-height: calc(100vh - 56px); }
+
+/* ===== NAVBAR ===== */
+.navbar { background: var(--primary) !important; }
+.navbar-brand { font-weight: 700; font-size: 1.1rem; letter-spacing: 0.5px; }
+
+/* ===== LOGIN ===== */
+.login-body {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-container { width: 100%; max-width: 400px; padding: 1rem; }
+
+.login-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.login-logo { text-align: center; color: var(--primary); }
+.login-logo i { font-size: 3rem; }
+.login-logo h1 { font-size: 1.6rem; font-weight: 800; margin: 0.5rem 0 0; }
+.login-logo p { color: #6c757d; font-size: 0.9rem; margin: 0; }
+
+.btn-login { background: var(--primary); border-color: var(--primary); font-weight: 600; padding: 0.75rem; }
+.btn-login:hover { background: var(--primary-light); border-color: var(--primary-light); }
+
+/* ===== STAT CARDS ===== */
+.stat-card {
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.stat-icon { font-size: 2rem; opacity: 0.85; }
+.stat-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+.stat-label { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
+
+/* ===== CARDS ===== */
+.card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.card-header { background: #fff; border-bottom: 1px solid #e9ecef; font-weight: 600; border-radius: 12px 12px 0 0 !important; }
+
+/* ===== TABLES ===== */
+.table th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6c757d; font-weight: 600; }
+.table td { vertical-align: middle; }
+
+/* ===== STATUS BADGES ===== */
+.badge-pendiente { background: #fff3cd; color: #856404; }
+.badge-en_proceso { background: #cff4fc; color: #055160; }
+.badge-completado { background: #d1e7dd; color: #0a3622; }
+.badge-archivado { background: #e2e3e5; color: #41464b; }
+
+/* ===== DOCUMENT TABS ===== */
+.doc-tabs .nav-link {
+  color: #495057;
+  border-radius: 8px 8px 0 0;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.9rem;
+}
+.doc-tabs .nav-link.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.doc-tabs .nav-link i { font-size: 1rem; }
+
+/* ===== SCAN MODAL ===== */
+#cameraPreview {
+  width: 100%;
+  border-radius: 8px;
+  background: #000;
+  max-height: 300px;
+}
+#captureCanvas { display: none; }
+#capturedPreview { max-width: 100%; border-radius: 8px; margin-top: 0.5rem; }
+
+/* ===== FILE LIST ===== */
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  background: #f8f9fa;
+}
+.file-item .file-icon { font-size: 1.5rem; color: var(--primary); }
+.file-item .file-name { font-size: 0.85rem; font-weight: 500; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-item .file-badge { font-size: 0.7rem; }
+
+/* ===== REPORT CHARTS ===== */
+.report-period-btn { min-width: 80px; }
+.report-period-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* ===== TEMPLATE EDITOR ===== */
+.field-row {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.field-row:hover { border-color: var(--primary-light); }
+
+/* ===== ADMIN TABLE ===== */
+.role-badge-admin { background: #dc3545; }
+.role-badge-notario { background: var(--primary); }
+
+/* ===== UTILITIES ===== */
+.text-primary { color: var(--primary) !important; }
+.btn-primary { background: var(--primary); border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-light); border-color: var(--primary-light); }
+.accent { color: var(--accent); }
+
+/* ===== SPINNER ===== */
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: rgba(255,255,255,0.7);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .sidebar { width: 60px; }
+  .sidebar .nav-link span { display: none; }
+  .sidebar .nav-link i { margin: 0; }
+  :root { --sidebar-width: 60px; }
+  .stat-card { flex-direction: column; text-align: center; }
+}

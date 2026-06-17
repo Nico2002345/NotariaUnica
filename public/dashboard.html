@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NotaríaÚnica - Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar navbar-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="/dashboard">
+        <i class="bi bi-building-lock me-2"></i>NotaríaÚnica
+      </a>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-white-50 small d-none d-md-inline" id="currentUser"></span>
+        <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#changePwdModal" title="Cambiar contraseña">
+          <i class="bi bi-key"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-light" onclick="logout()" title="Cerrar sesión">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="d-flex">
+    <div class="sidebar">
+      <nav class="nav flex-column p-3">
+        <a class="nav-link active" href="/dashboard"><i class="bi bi-speedometer2 me-2"></i><span>Dashboard</span></a>
+        <a class="nav-link" href="/documents"><i class="bi bi-folder2-open me-2"></i><span>Documentos</span></a>
+        <a class="nav-link" href="/reports"><i class="bi bi-bar-chart-line me-2"></i><span>Reportes</span></a>
+        <a class="nav-link admin-only d-none" href="/admin"><i class="bi bi-gear me-2"></i><span>Administración</span></a>
+      </nav>
+    </div>
+
+    <main class="main-content flex-grow-1 p-4">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h3 class="mb-0 fw-bold">Dashboard</h3>
+          <small class="text-muted" id="currentDate"></small>
+        </div>
+        <a href="/documents" class="btn btn-primary">
+          <i class="bi bi-plus-circle me-2"></i>Nuevo Documento
+        </a>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+          <div class="stat-card bg-primary text-white">
+            <div class="stat-icon"><i class="bi bi-files"></i></div>
+            <div class="stat-info"><div class="stat-value" id="totalDocs">—</div><div class="stat-label">Total Documentos</div></div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="stat-card bg-success text-white">
+            <div class="stat-icon"><i class="bi bi-calendar-check"></i></div>
+            <div class="stat-info"><div class="stat-value" id="todayDocs">—</div><div class="stat-label">Hoy</div></div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="stat-card bg-warning text-white">
+            <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+            <div class="stat-info"><div class="stat-value" id="pendingDocs">—</div><div class="stat-label">Pendientes</div></div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="stat-card bg-info text-white">
+            <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
+            <div class="stat-info"><div class="stat-value" id="completedDocs">—</div><div class="stat-label">Completados</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="row g-3 mb-4">
+        <div class="col-lg-8">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Documentos por Día (últimos 30 días)</h6>
+            </div>
+            <div class="card-body"><canvas id="dayChart"></canvas></div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Por Tipo</h6></div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+              <canvas id="typeChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent docs & quick actions -->
+      <div class="row g-3">
+        <div class="col-lg-8">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Documentos Recientes</h6>
+              <a href="/documents" class="btn btn-sm btn-outline-primary">Ver todos</a>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Título</th>
+                      <th class="d-none d-md-table-cell">Tipo</th>
+                      <th>Estado</th>
+                      <th class="d-none d-sm-table-cell">Fecha</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recentDocsList">
+                    <tr><td colspan="4" class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm"></span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="card mb-3">
+            <div class="card-header"><h6 class="mb-0"><i class="bi bi-lightning me-2"></i>Acciones Rápidas</h6></div>
+            <div class="card-body d-grid gap-2">
+              <a href="/documents" class="btn btn-primary"><i class="bi bi-plus-circle me-2"></i>Nuevo Documento</a>
+              <a href="/documents" class="btn btn-outline-secondary"><i class="bi bi-camera me-2"></i>Escanear Documento</a>
+              <a href="/reports" class="btn btn-outline-secondary"><i class="bi bi-bar-chart me-2"></i>Ver Reportes</a>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h6 class="mb-0"><i class="bi bi-tags me-2"></i>Por Tipo de Documento</h6></div>
+            <div class="card-body" id="typeDistribution">
+              <div class="text-center text-muted py-2"><span class="spinner-border spinner-border-sm"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Change password modal -->
+  <div class="modal fade" id="changePwdModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-key me-2"></i>Cambiar Contraseña</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="pwdAlert" class="alert d-none"></div>
+          <div class="mb-3">
+            <label class="form-label">Contraseña Actual</label>
+            <input type="password" id="currentPwd" class="form-control" placeholder="••••••••">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nueva Contraseña</label>
+            <input type="password" id="newPwd" class="form-control" placeholder="••••••••">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Confirmar Nueva Contraseña</label>
+            <input type="password" id="confirmPwd" class="form-control" placeholder="••••••••">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary" onclick="changePassword()"><i class="bi bi-check-circle me-2"></i>Cambiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

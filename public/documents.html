@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NotaríaÚnica - Documentos</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar navbar-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="/dashboard"><i class="bi bi-building-lock me-2"></i>NotaríaÚnica</a>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-white-50 small d-none d-md-inline" id="currentUser"></span>
+        <button class="btn btn-sm btn-outline-light" onclick="logout()"><i class="bi bi-box-arrow-right"></i></button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="d-flex">
+    <div class="sidebar">
+      <nav class="nav flex-column p-3">
+        <a class="nav-link" href="/dashboard"><i class="bi bi-speedometer2 me-2"></i><span>Dashboard</span></a>
+        <a class="nav-link active" href="/documents"><i class="bi bi-folder2-open me-2"></i><span>Documentos</span></a>
+        <a class="nav-link" href="/reports"><i class="bi bi-bar-chart-line me-2"></i><span>Reportes</span></a>
+        <a class="nav-link admin-only d-none" href="/admin"><i class="bi bi-gear me-2"></i><span>Administración</span></a>
+      </nav>
+    </div>
+
+    <main class="main-content flex-grow-1 p-4">
+      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <h3 class="mb-0 fw-bold"><i class="bi bi-folder2-open me-2"></i>Gestión de Documentos</h3>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary" onclick="openScanModal()">
+            <i class="bi bi-camera me-2"></i>Escanear
+          </button>
+          <button class="btn btn-primary" onclick="openNewDocModal()">
+            <i class="bi bi-plus-circle me-2"></i>Nuevo Documento
+          </button>
+        </div>
+      </div>
+
+      <!-- Search bar -->
+      <div class="card mb-3">
+        <div class="card-body py-2">
+          <div class="row g-2 align-items-center">
+            <div class="col-md-5">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" id="searchInput" class="form-control" placeholder="Buscar documentos...">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <select id="statusFilter" class="form-select form-select-sm">
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="en_proceso">En Proceso</option>
+                <option value="completado">Completado</option>
+                <option value="archivado">Archivado</option>
+              </select>
+            </div>
+            <div class="col-auto">
+              <button class="btn btn-sm btn-outline-secondary" onclick="loadDocuments()"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Document type tabs -->
+      <ul class="nav nav-tabs doc-tabs mb-0" id="docTypeTabs" role="tablist">
+        <li class="nav-item">
+          <a class="nav-link active" href="#" data-type-id="" onclick="selectType(null, this)">
+            <i class="bi bi-grid me-1"></i>Todos
+          </a>
+        </li>
+      </ul>
+
+      <div class="card" style="border-radius: 0 12px 12px 12px;">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:40px">#</th>
+                  <th>Título / Documento</th>
+                  <th class="d-none d-md-table-cell">Tipo</th>
+                  <th>Estado</th>
+                  <th class="d-none d-lg-table-cell">Creado por</th>
+                  <th class="d-none d-sm-table-cell">Fecha</th>
+                  <th style="width:120px">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="docsList">
+                <tr><td colspan="7" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="d-flex justify-content-between align-items-center p-3 border-top">
+            <small class="text-muted" id="docCount"></small>
+            <div id="pagination" class="d-flex gap-1"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- New / Edit Document Modal -->
+  <div class="modal fade" id="docModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="docModalTitle"><i class="bi bi-file-plus me-2"></i>Nuevo Documento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="docId">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tipo de Documento <span class="text-danger">*</span></label>
+              <select id="docType" class="form-select" onchange="loadTypeFields()">
+                <option value="">Seleccione un tipo...</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Estado</label>
+              <select id="docStatus" class="form-select">
+                <option value="pendiente">Pendiente</option>
+                <option value="en_proceso">En Proceso</option>
+                <option value="completado">Completado</option>
+                <option value="archivado">Archivado</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Título / Referencia <span class="text-danger">*</span></label>
+              <input type="text" id="docTitle" class="form-control" placeholder="Ej: Escritura 2024-001 - Compraventa García">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Descripción</label>
+              <textarea id="docDescription" class="form-control" rows="2" placeholder="Descripción breve del documento..."></textarea>
+            </div>
+          </div>
+
+          <!-- Dynamic fields -->
+          <div id="dynamicFields" class="mt-3"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveDocument()">
+            <i class="bi bi-check-circle me-2"></i>Guardar Documento
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Detail / Files Modal -->
+  <div class="modal fade" id="detailModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="detailTitle"><i class="bi bi-file-text me-2"></i>Detalle del Documento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>Información del Documento</h6>
+              <div id="detailFields"></div>
+            </div>
+            <div class="col-lg-6">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0"><i class="bi bi-paperclip me-2"></i>Archivos Adjuntos</h6>
+                <div class="d-flex gap-2">
+                  <label class="btn btn-sm btn-outline-primary mb-0" style="cursor:pointer">
+                    <i class="bi bi-upload me-1"></i>Subir
+                    <input type="file" id="fileUploadInput" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="d-none" onchange="uploadFiles()">
+                  </label>
+                  <button class="btn btn-sm btn-outline-secondary" onclick="openScanToDoc()">
+                    <i class="bi bi-camera me-1"></i>Escanear
+                  </button>
+                </div>
+              </div>
+              <div id="filesList">
+                <div class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <span class="badge me-auto" id="detailStatus"></span>
+          <button class="btn btn-outline-primary" onclick="editCurrentDoc()"><i class="bi bi-pencil me-1"></i>Editar</button>
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scanner Modal -->
+  <div class="modal fade" id="scanModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-camera me-2"></i>Escanear / Subir Documento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopCamera()"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tipo de Documento</label>
+              <select id="scanDocType" class="form-select">
+                <option value="">Seleccione tipo...</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Documento Destino</label>
+              <select id="scanDocTarget" class="form-select">
+                <option value="new">+ Crear nuevo documento</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="scanNewDocFields" class="mt-3">
+            <label class="form-label fw-semibold">Título del nuevo documento</label>
+            <input type="text" id="scanDocTitle" class="form-control" placeholder="Título del documento...">
+          </div>
+
+          <hr>
+
+          <ul class="nav nav-tabs mb-3" id="scanTabs">
+            <li class="nav-item">
+              <a class="nav-link active" href="#" onclick="switchScanTab('camera', this)"><i class="bi bi-camera me-1"></i>Cámara Web</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="switchScanTab('upload', this)"><i class="bi bi-upload me-1"></i>Subir Archivo</a>
+            </li>
+          </ul>
+
+          <!-- Camera tab -->
+          <div id="cameraTab">
+            <div class="text-center mb-2">
+              <video id="cameraPreview" autoplay playsinline class="d-none"></video>
+              <canvas id="captureCanvas"></canvas>
+              <img id="capturedPreview" class="d-none" alt="Imagen capturada">
+              <div id="cameraPlaceholder" class="border rounded p-5 text-muted">
+                <i class="bi bi-camera fs-1 d-block mb-2"></i>
+                Haga clic en "Iniciar Cámara" para escanear
+              </div>
+            </div>
+            <div class="d-flex justify-content-center gap-2 mt-2">
+              <button class="btn btn-outline-primary" id="startCameraBtn" onclick="startCamera()"><i class="bi bi-camera me-1"></i>Iniciar Cámara</button>
+              <button class="btn btn-success d-none" id="captureBtn" onclick="capturePhoto()"><i class="bi bi-camera-fill me-1"></i>Capturar</button>
+              <button class="btn btn-outline-secondary d-none" id="retakeBtn" onclick="retakePhoto()"><i class="bi bi-arrow-counterclockwise me-1"></i>Repetir</button>
+              <button class="btn btn-danger d-none" id="stopCameraBtn" onclick="stopCamera()"><i class="bi bi-stop-circle me-1"></i>Detener</button>
+            </div>
+          </div>
+
+          <!-- Upload tab -->
+          <div id="uploadTab" class="d-none">
+            <label class="form-label fw-semibold">Seleccionar Archivo(s)</label>
+            <input type="file" id="scanFileInput" class="form-control" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+            <small class="text-muted">PDF, imágenes (JPG, PNG) o documentos Word. Máx. 50MB por archivo.</small>
+            <div id="selectedFilePreview" class="mt-3"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal" onclick="stopCamera()">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveScan()"><i class="bi bi-check-circle me-2"></i>Guardar Documento</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm delete modal -->
+  <div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-content">
+        <div class="modal-header border-0">
+          <h6 class="modal-title text-danger"><i class="bi bi-trash me-2"></i>Eliminar Documento</h6>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body pt-0">¿Está seguro de eliminar este documento y todos sus archivos? Esta acción no se puede deshacer.</div>
+        <div class="modal-footer border-0">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-danger btn-sm" id="confirmDeleteBtn">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/documents.js"></script>
+</body>
+</html>
