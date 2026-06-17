@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'notaria-unica-secret-key-2024-secure';
+const JWT_SECRET = process.env.JWT_SECRET || 'notaria-unica-secret-2024';
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];

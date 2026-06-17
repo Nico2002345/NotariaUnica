@@ -8,11 +8,12 @@ const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 router.use(authenticateToken);
 
+const uploadsDir = path.join(process.env.DATA_DIR || path.join(__dirname, '..'), 'uploads');
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '..', 'uploads');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     cb(null, `doc-${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`);
@@ -122,7 +123,7 @@ router.put('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   const files = allQuery('SELECT * FROM document_files WHERE document_id = ?', [parseInt(req.params.id)]);
   files.forEach(f => {
-    const fp = path.join(__dirname, '..', f.file_path);
+    const fp = path.join(process.env.DATA_DIR || path.join(__dirname, '..'), f.file_path);
     if (fs.existsSync(fp)) fs.unlinkSync(fp);
   });
   runQuery('DELETE FROM document_files WHERE document_id = ?', [parseInt(req.params.id)]);
@@ -159,7 +160,8 @@ router.post('/:id/scan', (req, res) => {
   const base64Data = image_data.replace(/^data:image\/\w+;base64,/, '');
   const buffer = Buffer.from(base64Data, 'base64');
   const filename = `scan-${Date.now()}.jpg`;
-  fs.writeFileSync(path.join(__dirname, '..', 'uploads', filename), buffer);
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+  fs.writeFileSync(path.join(uploadsDir, filename), buffer);
 
   const relativePath = `uploads/${filename}`;
   const result = runQuery(
@@ -175,7 +177,7 @@ router.delete('/:id/files/:fileId', (req, res) => {
     [parseInt(req.params.fileId), parseInt(req.params.id)]);
   if (!file) return res.status(404).json({ error: 'Archivo no encontrado' });
 
-  const fp = path.join(__dirname, '..', file.file_path);
+  const fp = path.join(process.env.DATA_DIR || path.join(__dirname, '..'), file.file_path);
   if (fs.existsSync(fp)) fs.unlinkSync(fp);
   runQuery('DELETE FROM document_files WHERE id = ?', [parseInt(req.params.fileId)]);
   res.json({ message: 'Archivo eliminado' });

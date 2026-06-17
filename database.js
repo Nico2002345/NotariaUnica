@@ -3,7 +3,8 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 
-const dbPath = path.join(__dirname, 'notaria.db');
+const dataDir = process.env.DATA_DIR || __dirname;
+const dbPath = path.join(dataDir, 'notaria.db');
 let db = null;
 
 async function initDatabase() {
