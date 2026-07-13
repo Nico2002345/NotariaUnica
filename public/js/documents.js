@@ -270,13 +270,23 @@ function renderFilesList(files) {
     <div class="file-item">
       <i class="${fileIcon(f.file_type)} file-icon fs-4"></i>
       <div class="file-name">
-        <a href="/${f.file_path}" target="_blank">${f.original_name}</a>
+        <a href="#" onclick="openFile(${f.id}); return false;">${f.original_name}</a>
         ${f.is_scanned ? '<span class="badge badge-en_proceso file-badge ms-1">Escaneado</span>' : ''}
       </div>
       <small class="text-muted">${fileSizeLabel(f.file_size)}</small>
       <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteFile(${f.id})"><i class="bi bi-trash"></i></button>
     </div>
   `).join('');
+}
+
+async function openFile(fileId) {
+  const res = await fetch(`/api/documents/${currentDocId}/files/${fileId}/download`, {
+    headers: { 'Authorization': `Bearer ${API.token()}` }
+  });
+  if (!res.ok) { showToast('No se pudo abrir el archivo', 'error'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
 }
 
 async function uploadFiles() {

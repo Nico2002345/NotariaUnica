@@ -37,10 +37,12 @@ router.get('/types', (req, res) => {
 });
 
 router.get('/', (req, res) => {
-  const { type_id, status, search, limit = 50, offset = 0 } = req.query;
+  const { type_id, status, search, created_by, limit = 50, offset = 0 } = req.query;
   let where = 'WHERE 1=1';
   const params = [];
 
+  if (req.user.role !== 'admin') { where += ' AND d.created_by = ?'; params.push(req.user.id); }
+  else if (created_by) { where += ' AND d.created_by = ?'; params.push(parseInt(created_by)); }
   if (type_id) { where += ' AND d.type_id = ?'; params.push(parseInt(type_id)); }
   if (status) { where += ' AND d.status = ?'; params.push(status); }
   if (search) { where += ' AND (d.title LIKE ? OR d.description LIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
@@ -76,6 +78,9 @@ router.get('/:id', (req, res) => {
   `, [parseInt(req.params.id)]);
 
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
+  if (req.user.role !== 'admin' && doc.created_by !== req.user.id) {
+    return res.status(403).json({ error: 'No tiene acceso a este documento' });
+  }
 
   const files = allQuery('SELECT * FROM document_files WHERE document_id = ? ORDER BY created_at DESC', [doc.id]);
   res.json({
@@ -103,6 +108,9 @@ router.put('/:id', (req, res) => {
   const { title, description, status, fields_data } = req.body;
   const doc = getQuery('SELECT * FROM documents WHERE id = ?', [parseInt(req.params.id)]);
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
+  if (req.user.role !== 'admin' && doc.created_by !== req.user.id) {
+    return res.status(403).json({ error: 'No tiene acceso a este documento' });
+  }
 
   runQuery(
     'UPDATE documents SET title = ?, description = ?, status = ?, fields_data = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
@@ -121,6 +129,12 @@ router.put('/:id', (req, res) => {
 });
 
 router.delete('/:id', (req, res) => {
+  const doc = getQuery('SELECT * FROM documents WHERE id = ?', [parseInt(req.params.id)]);
+  if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
+  if (req.user.role !== 'admin' && doc.created_by !== req.user.id) {
+    return res.status(403).json({ error: 'No tiene acceso a este documento' });
+  }
+
   const files = allQuery('SELECT * FROM document_files WHERE document_id = ?', [parseInt(req.params.id)]);
   files.forEach(f => {
     const fp = path.join(process.env.DATA_DIR || path.join(__dirname, '..'), f.file_path);
@@ -133,8 +147,11 @@ router.delete('/:id', (req, res) => {
 
 router.post('/:id/files', upload.array('files', 10), (req, res) => {
   const docId = parseInt(req.params.id);
-  const doc = getQuery('SELECT id FROM documents WHERE id = ?', [docId]);
+  const doc = getQuery('SELECT id, created_by FROM documents WHERE id = ?', [docId]);
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
+  if (req.user.role !== 'admin' && doc.created_by !== req.user.id) {
+    return res.status(403).json({ error: 'No tiene acceso a este documento' });
+  }
 
   const isScanned = req.body.is_scanned === 'true' ? 1 : 0;
   const savedFiles = req.files.map(f => {
@@ -154,8 +171,11 @@ router.post('/:id/scan', (req, res) => {
   if (!image_data) return res.status(400).json({ error: 'Datos de imagen requeridos' });
 
   const docId = parseInt(req.params.id);
-  const doc = getQuery('SELECT id FROM documents WHERE id = ?', [docId]);
+  const doc = getQuery('SELECT id, created_by FROM documents WHERE id = ?', [docId]);
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
+  if (req.user.role !== 'admin' && doc.created_by !== req.user.id) {
+    return res.status(403).json({ error: 'No tiene acceso a este documento' });
+  }
 
   const base64Data = image_data.replace(/^data:image\/\w+;base64,/, '');
   const buffer = Buffer.from(base64Data, 'base64');
@@ -172,10 +192,30 @@ router.post('/:id/scan', (req, res) => {
   res.json({ id: result.lastID, file_path: relativePath, file_name: filename, is_scanned: 1 });
 });
 
+router.get('/:id/files/:fileId/download', (req, res) => {
+  const file = getQuery('SELECT * FROM document_files WHERE id = ? AND document_id = ?',
+    [parseInt(req.params.fileId), parseInt(req.params.id)]);
+  if (!file) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+  const doc = getQuery('SELECT created_by FROM documents WHERE id = ?', [parseInt(req.params.id)]);
+  if (!doc || (req.user.role !== 'admin' && doc.created_by !== req.user.id)) {
+    return res.status(403).json({ error: 'No tiene acceso a este archivo' });
+  }
+
+  const fp = path.join(process.env.DATA_DIR || path.join(__dirname, '..'), file.file_path);
+  if (!fs.existsSync(fp)) return res.status(404).json({ error: 'Archivo no encontrado en disco' });
+  res.sendFile(fp);
+});
+
 router.delete('/:id/files/:fileId', (req, res) => {
   const file = getQuery('SELECT * FROM document_files WHERE id = ? AND document_id = ?',
     [parseInt(req.params.fileId), parseInt(req.params.id)]);
   if (!file) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+  const doc = getQuery('SELECT created_by FROM documents WHERE id = ?', [parseInt(req.params.id)]);
+  if (doc && req.user.role !== 'admin' && doc.created_by !== req.user.id) {
+    return res.status(403).json({ error: 'No tiene acceso a este documento' });
+  }
 
   const fp = path.join(process.env.DATA_DIR || path.join(__dirname, '..'), file.file_path);
   if (fs.existsSync(fp)) fs.unlinkSync(fp);

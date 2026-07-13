@@ -40,6 +40,9 @@
         <li class="nav-item">
           <a class="nav-link" href="#" onclick="showAdminTab('templates', this)"><i class="bi bi-layout-text-window me-2"></i>Plantillas de Documentos</a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#" onclick="showAdminTab('userReports', this)"><i class="bi bi-file-earmark-person me-2"></i>Reportes por Usuario</a>
+        </li>
       </ul>
 
       <!-- Users tab -->
@@ -101,6 +104,111 @@
               <div class="card-body text-center text-muted py-5">
                 <i class="bi bi-layout-text-window fs-1 d-block mb-2"></i>
                 Seleccione un tipo de documento para editar su formulario
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- User reports tab -->
+      <div id="userReportsPanel" class="d-none">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <div>
+            <h5 class="mb-1">Documentos por Usuario</h5>
+            <p class="text-muted small mb-0">Cada notario ve únicamente sus propios documentos. Seleccione un notario para ver su reporte detallado.</p>
+          </div>
+          <select id="userReportSelect" class="form-select" style="width:260px" onchange="loadUserReportDetail(this.value)">
+            <option value="">Ver resumen de todos los notarios</option>
+          </select>
+        </div>
+
+        <!-- Overview table (all users) -->
+        <div class="card" id="userReportsOverview">
+          <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Notario</th>
+                  <th class="text-end">Total</th>
+                  <th class="text-end">Pendientes</th>
+                  <th class="text-end">En Proceso</th>
+                  <th class="text-end">Completados</th>
+                  <th class="text-end">Archivados</th>
+                </tr>
+              </thead>
+              <tbody id="userReportsList">
+                <tr><td colspan="6" class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Single user detail -->
+        <div id="userReportDetail" class="d-none">
+          <div class="row g-3 mb-3">
+            <div class="col-6 col-md" style="flex:0 0 20%;max-width:20%">
+              <div class="card text-center p-3">
+                <div class="fs-3 fw-bold text-primary" id="udTotal">—</div>
+                <div class="text-muted small">Total</div>
+              </div>
+            </div>
+            <div class="col-6 col-md" style="flex:0 0 20%;max-width:20%">
+              <div class="card text-center p-3">
+                <div class="fs-3 fw-bold text-warning" id="udPending">—</div>
+                <div class="text-muted small">Pendientes</div>
+              </div>
+            </div>
+            <div class="col-6" style="flex:0 0 20%;max-width:20%">
+              <div class="card text-center p-3">
+                <div class="fs-3 fw-bold text-info" id="udInProcess">—</div>
+                <div class="text-muted small">En Proceso</div>
+              </div>
+            </div>
+            <div class="col-6" style="flex:0 0 20%;max-width:20%">
+              <div class="card text-center p-3">
+                <div class="fs-3 fw-bold text-success" id="udCompleted">—</div>
+                <div class="text-muted small">Completados</div>
+              </div>
+            </div>
+            <div class="col-6" style="flex:0 0 20%;max-width:20%">
+              <div class="card text-center p-3">
+                <div class="fs-3 fw-bold text-secondary" id="udArchived">—</div>
+                <div class="text-muted small">Archivados</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="card">
+                <div class="card-header"><h6 class="mb-0">Por Tipo de Documento</h6></div>
+                <div class="card-body p-0">
+                  <table class="table table-sm mb-0">
+                    <tbody id="udByType"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-8">
+              <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <h6 class="mb-0">Documentos de <span id="udUserName"></span></h6>
+                </div>
+                <div class="card-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Título</th>
+                          <th>Tipo</th>
+                          <th>Estado</th>
+                          <th>Fecha</th>
+                        </tr>
+                      </thead>
+                      <tbody id="udDocsList"></tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

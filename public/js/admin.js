@@ -14,7 +14,87 @@ function showAdminTab(tab, el) {
   el.classList.add('active');
   document.getElementById('usersPanel').classList.toggle('d-none', tab !== 'users');
   document.getElementById('templatesPanel').classList.toggle('d-none', tab !== 'templates');
+  document.getElementById('userReportsPanel').classList.toggle('d-none', tab !== 'userReports');
   if (tab === 'templates') loadTemplates();
+  if (tab === 'userReports') loadUserReports();
+}
+
+// ===== USER REPORTS =====
+let userReportsCache = [];
+
+async function loadUserReports() {
+  const report = await API.get('/api/admin/reports/users') || [];
+  userReportsCache = report;
+
+  document.getElementById('userReportSelect').value = '';
+  document.getElementById('userReportsOverview').classList.remove('d-none');
+  document.getElementById('userReportDetail').classList.add('d-none');
+
+  const tbody = document.getElementById('userReportsList');
+  if (report.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Sin notarios registrados</td></tr>';
+  } else {
+    tbody.innerHTML = report.map(u => `
+      <tr style="cursor:pointer" onclick="document.getElementById('userReportSelect').value='${u.id}'; loadUserReportDetail('${u.id}');">
+        <td class="fw-semibold">${u.full_name} <small class="text-muted">(${u.username})</small></td>
+        <td class="text-end fw-bold">${u.total}</td>
+        <td class="text-end">${u.pending}</td>
+        <td class="text-end">${u.inProcess}</td>
+        <td class="text-end">${u.completed}</td>
+        <td class="text-end">${u.archived}</td>
+      </tr>
+    `).join('');
+  }
+
+  const select = document.getElementById('userReportSelect');
+  select.innerHTML = '<option value="">Ver resumen de todos los notarios</option>' +
+    report.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
+}
+
+async function loadUserReportDetail(userId) {
+  const overview = document.getElementById('userReportsOverview');
+  const detail = document.getElementById('userReportDetail');
+
+  if (!userId) {
+    overview.classList.remove('d-none');
+    detail.classList.add('d-none');
+    return;
+  }
+
+  const u = userReportsCache.find(x => String(x.id) === String(userId));
+  if (!u) return;
+
+  overview.classList.add('d-none');
+  detail.classList.remove('d-none');
+
+  document.getElementById('udUserName').textContent = u.full_name;
+  document.getElementById('udTotal').textContent = u.total;
+  document.getElementById('udPending').textContent = u.pending;
+  document.getElementById('udInProcess').textContent = u.inProcess;
+  document.getElementById('udCompleted').textContent = u.completed;
+  document.getElementById('udArchived').textContent = u.archived;
+
+  const byTypeEl = document.getElementById('udByType');
+  byTypeEl.innerHTML = u.byType.length
+    ? u.byType.map(t => `<tr><td><i class="${t.icon} me-2 text-primary"></i>${t.name}</td><td class="text-end fw-bold">${t.count}</td></tr>`).join('')
+    : '<tr><td class="text-center text-muted py-3">Sin documentos</td></tr>';
+
+  const docsList = document.getElementById('udDocsList');
+  docsList.innerHTML = '<tr><td colspan="4" class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></td></tr>';
+
+  const docs = await API.get(`/api/documents?created_by=${userId}&limit=100`);
+  if (!docs || docs.documents.length === 0) {
+    docsList.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Sin documentos</td></tr>';
+  } else {
+    docsList.innerHTML = docs.documents.map(d => `
+      <tr>
+        <td class="fw-semibold">${d.title}</td>
+        <td><small>${d.type_name}</small></td>
+        <td>${statusBadge(d.status)}</td>
+        <td><small>${formatDate(d.created_at)}</small></td>
+      </tr>
+    `).join('');
+  }
 }
 
 // ===== USERS =====
