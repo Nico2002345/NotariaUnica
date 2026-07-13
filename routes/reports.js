@@ -53,43 +53,47 @@ router.get('/by-day', (req, res) => {
 
 router.get('/by-week', (req, res) => {
   const isAdmin = req.user.role === 'admin';
+  const filterUserId = isAdmin ? (req.query.user_id ? parseInt(req.query.user_id) : null) : req.user.id;
   const data = allQuery(`
     SELECT strftime('%Y-W%W', created_at, 'localtime') as week, COUNT(*) as count
     FROM documents
-    WHERE DATE(created_at, 'localtime') >= DATE('now', 'localtime', '-84 days')${isAdmin ? '' : ' AND created_by = ?'}
+    WHERE DATE(created_at, 'localtime') >= DATE('now', 'localtime', '-84 days')${filterUserId ? ' AND created_by = ?' : ''}
     GROUP BY strftime('%Y-W%W', created_at, 'localtime') ORDER BY week ASC
-  `, isAdmin ? [] : [req.user.id]);
+  `, filterUserId ? [filterUserId] : []);
   res.json(data);
 });
 
 router.get('/by-month', (req, res) => {
   const isAdmin = req.user.role === 'admin';
+  const filterUserId = isAdmin ? (req.query.user_id ? parseInt(req.query.user_id) : null) : req.user.id;
   const data = allQuery(`
     SELECT strftime('%Y-%m', created_at, 'localtime') as month, COUNT(*) as count
     FROM documents
-    WHERE DATE(created_at, 'localtime') >= DATE('now', 'localtime', '-365 days')${isAdmin ? '' : ' AND created_by = ?'}
+    WHERE DATE(created_at, 'localtime') >= DATE('now', 'localtime', '-365 days')${filterUserId ? ' AND created_by = ?' : ''}
     GROUP BY strftime('%Y-%m', created_at, 'localtime') ORDER BY month ASC
-  `, isAdmin ? [] : [req.user.id]);
+  `, filterUserId ? [filterUserId] : []);
   res.json(data);
 });
 
 router.get('/by-year', (req, res) => {
   const isAdmin = req.user.role === 'admin';
+  const filterUserId = isAdmin ? (req.query.user_id ? parseInt(req.query.user_id) : null) : req.user.id;
   const data = allQuery(`
     SELECT strftime('%Y', created_at, 'localtime') as year, COUNT(*) as count
-    FROM documents WHERE 1=1${isAdmin ? '' : ' AND created_by = ?'}
+    FROM documents WHERE 1=1${filterUserId ? ' AND created_by = ?' : ''}
     GROUP BY strftime('%Y', created_at, 'localtime') ORDER BY year ASC
-  `, isAdmin ? [] : [req.user.id]);
+  `, filterUserId ? [filterUserId] : []);
   res.json(data);
 });
 
 router.get('/range', (req, res) => {
-  const { from, to, type_id } = req.query;
+  const { from, to, type_id, user_id } = req.query;
   if (!from || !to) return res.status(400).json({ error: 'Fechas from y to requeridas' });
 
   let where = "WHERE DATE(d.created_at, 'localtime') BETWEEN ? AND ?";
   const params = [from, to];
   if (req.user.role !== 'admin') { where += ' AND d.created_by = ?'; params.push(req.user.id); }
+  else if (user_id) { where += ' AND d.created_by = ?'; params.push(parseInt(user_id)); }
   if (type_id) { where += ' AND d.type_id = ?'; params.push(parseInt(type_id)); }
 
   const documents = allQuery(`

@@ -1,5 +1,6 @@
 let mainChart, typeChart, statusChart;
 let currentPeriod = 'day';
+let selectedReportsUser = '';
 
 const COLORS = ['#1a3a5c', '#2d6a9f', '#c8a951', '#28a745', '#17a2b8', '#dc3545', '#6f42c1'];
 const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -14,10 +15,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('rangeFrom').value = firstOfMonth.toISOString().split('T')[0];
   document.getElementById('rangeTo').value = today.toISOString().split('T')[0];
 
+  if (user.role === 'admin') await loadReportsUserOptions();
+
   await loadTypeOptions();
   loadAllCharts();
   loadTypeSummary();
 });
+
+async function loadReportsUserOptions() {
+  const users = await API.get('/api/admin/users') || [];
+  const notarios = users.filter(u => u.role === 'notario');
+  const select = document.getElementById('reportsUserSelect');
+  select.innerHTML = '<option value="">Todos los notarios</option>' +
+    notarios.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
+}
+
+function changeReportsUser(userId) {
+  selectedReportsUser = userId;
+  loadAllCharts();
+  loadTypeSummary();
+  document.getElementById('rangeReportCard').style.setProperty('display', 'none', 'important');
+}
+
+function userQS(sep = '?') {
+  return selectedReportsUser ? `${sep}user_id=${selectedReportsUser}` : '';
+}
 
 async function loadTypeOptions() {
   const types = await API.get('/api/documents/types') || [];
@@ -48,7 +70,7 @@ async function loadMainChart() {
 
   document.getElementById('chartTitle').innerHTML = `<i class="bi bi-graph-up me-2"></i>${titleMap[currentPeriod]}`;
 
-  const data = await API.get(`/api/reports/by-${currentPeriod}`);
+  const data = await API.get(`/api/reports/by-${currentPeriod}${userQS()}`);
   if (!data) return;
 
   let labels = data.map(d => {
@@ -102,7 +124,7 @@ async function loadMainChart() {
 }
 
 async function loadStats() {
-  const data = await API.get('/api/reports/stats');
+  const data = await API.get(`/api/reports/stats${userQS()}`);
   if (!data) return;
 
   document.getElementById('reportCompleted').textContent = data.completed;
@@ -152,7 +174,7 @@ async function loadStats() {
 }
 
 async function loadTypeSummary() {
-  const data = await API.get('/api/reports/stats');
+  const data = await API.get(`/api/reports/stats${userQS()}`);
   if (!data) return;
 
   const total = data.byType.reduce((a, t) => a + t.count, 0);
@@ -194,6 +216,7 @@ async function loadRangeReport() {
 
   let url = `/api/reports/range?from=${from}&to=${to}`;
   if (typeId) url += `&type_id=${typeId}`;
+  if (selectedReportsUser) url += `&user_id=${selectedReportsUser}`;
 
   const data = await API.get(url);
   if (!data) return;
