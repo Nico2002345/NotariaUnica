@@ -1,6 +1,7 @@
 let dayChart, typeChart;
+let selectedDashboardUser = '';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const user = requireAuth();
   if (!user) return;
   showUserInfo();
@@ -9,12 +10,29 @@ document.addEventListener('DOMContentLoaded', () => {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
 
+  if (user.role === 'admin') await loadDashboardUserOptions();
+
   loadStats();
   loadDayChart();
 });
 
+async function loadDashboardUserOptions() {
+  const users = await API.get('/api/admin/users') || [];
+  const notarios = users.filter(u => u.role === 'notario');
+  const select = document.getElementById('dashboardUserSelect');
+  select.innerHTML = '<option value="">Todos los notarios</option>' +
+    notarios.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
+}
+
+function changeDashboardUser(userId) {
+  selectedDashboardUser = userId;
+  loadStats();
+  loadDayChart();
+}
+
 async function loadStats() {
-  const data = await API.get('/api/reports/stats');
+  const qs = selectedDashboardUser ? `?user_id=${selectedDashboardUser}` : '';
+  const data = await API.get(`/api/reports/stats${qs}`);
   if (!data) return;
 
   document.getElementById('totalDocs').textContent = data.total;
@@ -66,7 +84,8 @@ async function loadStats() {
 }
 
 async function loadDayChart() {
-  const data = await API.get('/api/reports/by-day?days=30');
+  const qs = selectedDashboardUser ? `&user_id=${selectedDashboardUser}` : '';
+  const data = await API.get(`/api/reports/by-day?days=30${qs}`);
   if (!data) return;
 
   if (dayChart) dayChart.destroy();

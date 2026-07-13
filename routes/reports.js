@@ -7,8 +7,9 @@ router.use(authenticateToken);
 
 router.get('/stats', (req, res) => {
   const isAdmin = req.user.role === 'admin';
-  const ownerClause = isAdmin ? '' : ' AND created_by = ?';
-  const ownerParams = isAdmin ? [] : [req.user.id];
+  const filterUserId = isAdmin ? (req.query.user_id ? parseInt(req.query.user_id) : null) : req.user.id;
+  const ownerClause = filterUserId ? ' AND created_by = ?' : '';
+  const ownerParams = filterUserId ? [filterUserId] : [];
 
   const total = (getQuery(`SELECT COUNT(*) as count FROM documents WHERE 1=1${ownerClause}`, ownerParams) || { count: 0 }).count;
   const todayCount = (getQuery(`SELECT COUNT(*) as count FROM documents WHERE DATE(created_at) = DATE('now', 'localtime')${ownerClause}`, ownerParams) || { count: 0 }).count;
@@ -19,9 +20,9 @@ router.get('/stats', (req, res) => {
 
   const byType = allQuery(`
     SELECT dt.name, dt.code, dt.icon, COUNT(d.id) as count
-    FROM document_types dt LEFT JOIN documents d ON dt.id = d.type_id${isAdmin ? '' : ' AND d.created_by = ?'}
+    FROM document_types dt LEFT JOIN documents d ON dt.id = d.type_id${filterUserId ? ' AND d.created_by = ?' : ''}
     WHERE dt.is_active = 1 GROUP BY dt.id ORDER BY count DESC
-  `, isAdmin ? [] : [req.user.id]);
+  `, filterUserId ? [filterUserId] : []);
 
   const byStatus = allQuery(`SELECT status, COUNT(*) as count FROM documents WHERE 1=1${ownerClause} GROUP BY status`, ownerParams);
 
@@ -39,13 +40,14 @@ router.get('/stats', (req, res) => {
 
 router.get('/by-day', (req, res) => {
   const isAdmin = req.user.role === 'admin';
+  const filterUserId = isAdmin ? (req.query.user_id ? parseInt(req.query.user_id) : null) : req.user.id;
   const days = Math.min(parseInt(req.query.days) || 30, 365);
   const data = allQuery(`
     SELECT DATE(created_at, 'localtime') as date, COUNT(*) as count
     FROM documents
-    WHERE DATE(created_at, 'localtime') >= DATE('now', 'localtime', '-${days} days')${isAdmin ? '' : ' AND created_by = ?'}
+    WHERE DATE(created_at, 'localtime') >= DATE('now', 'localtime', '-${days} days')${filterUserId ? ' AND created_by = ?' : ''}
     GROUP BY DATE(created_at, 'localtime') ORDER BY date ASC
-  `, isAdmin ? [] : [req.user.id]);
+  `, filterUserId ? [filterUserId] : []);
   res.json(data);
 });
 
