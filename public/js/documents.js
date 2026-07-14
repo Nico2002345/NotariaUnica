@@ -439,42 +439,45 @@ function retakePhoto() {
 
 function rotateCapture(deg) {
   captureRotation = (captureRotation + deg + 360) % 360;
-  applyImageAdjustments();
+  return applyImageAdjustments();
 }
 
 function resetAdjustments() {
   document.getElementById('adjBrightness').value = 100;
   document.getElementById('adjContrast').value = 100;
   captureRotation = 0;
-  applyImageAdjustments();
+  return applyImageAdjustments();
 }
 
 function applyImageAdjustments() {
-  if (!originalCapturedImage) return;
+  if (!originalCapturedImage) return Promise.resolve();
   const brightness = document.getElementById('adjBrightness').value;
   const contrast = document.getElementById('adjContrast').value;
   document.getElementById('brightnessVal').textContent = `${brightness}%`;
   document.getElementById('contrastVal').textContent = `${contrast}%`;
 
-  const img = new Image();
-  img.onload = () => {
-    const canvas = document.getElementById('captureCanvas');
-    const rotated90 = captureRotation === 90 || captureRotation === 270;
-    canvas.width = rotated90 ? img.height : img.width;
-    canvas.height = rotated90 ? img.width : img.height;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.getElementById('captureCanvas');
+      const rotated90 = captureRotation === 90 || captureRotation === 270;
+      canvas.width = rotated90 ? img.height : img.width;
+      canvas.height = rotated90 ? img.width : img.height;
 
-    const ctx = canvas.getContext('2d');
-    ctx.save();
-    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.rotate((captureRotation * Math.PI) / 180);
-    ctx.drawImage(img, -img.width / 2, -img.height / 2);
-    ctx.restore();
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((captureRotation * Math.PI) / 180);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      ctx.restore();
 
-    capturedImage = canvas.toDataURL('image/jpeg', 0.93);
-    document.getElementById('capturedPreview').src = capturedImage;
-  };
-  img.src = originalCapturedImage;
+      capturedImage = canvas.toDataURL('image/jpeg', 0.93);
+      document.getElementById('capturedPreview').src = capturedImage;
+      resolve();
+    };
+    img.src = originalCapturedImage;
+  });
 }
 
 // ===== CROP =====
@@ -612,7 +615,7 @@ function applyCrop() {
   originalCapturedImage = canvas.toDataURL('image/jpeg', 0.93);
   captureRotation = 0;
   cancelCropMode();
-  resetAdjustments();
+  return resetAdjustments();
 }
 
 function stopCamera() {
@@ -653,6 +656,7 @@ async function saveScan() {
   const toPdf = document.getElementById('scanToPdf').checked;
 
   if (isCameraTab) {
+    if (cropping) await applyCrop();
     if (!capturedImage) { showToast('Capture una imagen primero', 'error'); return; }
     const res = await API.post(`/api/documents/${docId}/scan`, { image_data: capturedImage, file_name: `scan-${Date.now()}.jpg`, to_pdf: toPdf });
     if (res.file_path) {
