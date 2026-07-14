@@ -376,8 +376,16 @@ function switchScanTab(tab, el) {
 }
 
 async function startCamera() {
+  const highResConstraints = {
+    video: { facingMode: 'environment', width: { ideal: 3840 }, height: { ideal: 2160 } },
+    audio: false
+  };
   try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia(highResConstraints);
+    } catch (e) {
+      cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    }
     const video = document.getElementById('cameraPreview');
     video.srcObject = cameraStream;
     video.classList.remove('d-none');
@@ -396,7 +404,7 @@ function capturePhoto() {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
-  capturedImage = canvas.toDataURL('image/jpeg', 0.9);
+  capturedImage = canvas.toDataURL('image/jpeg', 0.95);
 
   const preview = document.getElementById('capturedPreview');
   preview.src = capturedImage;
