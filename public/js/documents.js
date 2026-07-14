@@ -349,6 +349,7 @@ function openScanModal(docId = null) {
   document.getElementById('scanFileInput').value = '';
   document.getElementById('selectedFilePreview').innerHTML = '';
   document.getElementById('scanDocTitle').value = '';
+  document.getElementById('scanToPdf').checked = true;
   if (docId) {
     document.getElementById('scanDocTarget').value = docId;
     document.getElementById('scanNewDocFields').classList.add('d-none');
@@ -448,14 +449,15 @@ async function saveScan() {
 
   // Determine if camera or file upload
   const isCameraTab = !document.getElementById('cameraTab').classList.contains('d-none');
+  const toPdf = document.getElementById('scanToPdf').checked;
 
   if (isCameraTab) {
     if (!capturedImage) { showToast('Capture una imagen primero', 'error'); return; }
-    const res = await API.post(`/api/documents/${docId}/scan`, { image_data: capturedImage, file_name: `scan-${Date.now()}.jpg` });
+    const res = await API.post(`/api/documents/${docId}/scan`, { image_data: capturedImage, file_name: `scan-${Date.now()}.jpg`, to_pdf: toPdf });
     if (res.file_path) {
       stopCamera();
       bootstrap.Modal.getInstance(document.getElementById('scanModal')).hide();
-      showToast('Imagen guardada exitosamente');
+      showToast(toPdf ? 'PDF generado exitosamente' : 'Imagen guardada exitosamente');
       loadDocuments();
     } else {
       showToast(res.error || 'Error al guardar imagen', 'error');
@@ -466,6 +468,7 @@ async function saveScan() {
     const formData = new FormData();
     for (const f of fileInput.files) formData.append('files', f);
     formData.append('is_scanned', 'true');
+    formData.append('to_pdf', toPdf ? 'true' : 'false');
     const res = await API.upload(`/api/documents/${docId}/files`, formData);
     if (res.files) {
       bootstrap.Modal.getInstance(document.getElementById('scanModal')).hide();

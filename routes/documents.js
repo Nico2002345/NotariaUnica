@@ -2,8 +2,20 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { PDFDocument } = require('pdf-lib');
 const { getQuery, allQuery, runQuery } = require('../database');
 const { authenticateToken } = require('../middleware/auth');
+
+async function imageToPdfBuffer(imageBuffer, mimeType) {
+  // pdf-lib reads image.buffer directly without honoring byteOffset, so a
+  // pooled Node Buffer (nonzero byteOffset) gets misread as corrupt data.
+  const cleanBytes = Uint8Array.from(imageBuffer);
+  const pdfDoc = await PDFDocument.create();
+  const image = mimeType === 'image/png' ? await pdfDoc.embedPng(cleanBytes) : await pdfDoc.embedJpg(cleanBytes);
+  const page = pdfDoc.addPage([image.width, image.height]);
+  page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
+  return Buffer.from(await pdfDoc.save());
+}
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -145,7 +157,7 @@ router.delete('/:id', (req, res) => {
   res.json({ message: 'Documento eliminado' });
 });
 
-router.post('/:id/files', upload.array('files', 10), (req, res) => {
+router.post('/:id/files', upload.array('files', 10), async (req, res) => {
   const docId = parseInt(req.params.id);
   const doc = getQuery('SELECT id, created_by FROM documents WHERE id = ?', [docId]);
   if (!doc) return res.status(404).json({ error: 'Documento no encontrado' });
@@ -154,20 +166,45 @@ router.post('/:id/files', upload.array('files', 10), (req, res) => {
   }
 
   const isScanned = req.body.is_scanned === 'true' ? 1 : 0;
-  const savedFiles = req.files.map(f => {
-    const relativePath = `uploads/${f.filename}`;
-    const result = runQuery(
-      'INSERT INTO document_files (document_id, file_path, file_name, original_name, file_type, file_size, is_scanned, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [docId, relativePath, f.filename, f.originalname, f.mimetype, f.size, isScanned, req.user.id]
-    );
-    return { id: result.lastID, file_path: relativePath, file_name: f.filename, original_name: f.originalname, file_type: f.mimetype, file_size: f.size, is_scanned: isScanned };
-  });
+  const toPdf = req.body.to_pdf === 'true';
 
-  res.json({ files: savedFiles });
+  try {
+    const savedFiles = [];
+    for (const f of req.files) {
+      let relativePath = `uploads/${f.filename}`;
+      let fileName = f.filename;
+      let fileType = f.mimetype;
+      let fileSize = f.size;
+      let originalName = f.originalname;
+
+      if (toPdf && (f.mimetype === 'image/jpeg' || f.mimetype === 'image/jpg' || f.mimetype === 'image/png')) {
+        const imgPath = path.join(uploadsDir, f.filename);
+        const pdfBuffer = await imageToPdfBuffer(fs.readFileSync(imgPath), f.mimetype);
+        const pdfFilename = f.filename.replace(/\.[^.]+$/, '.pdf');
+        fs.writeFileSync(path.join(uploadsDir, pdfFilename), pdfBuffer);
+        fs.unlinkSync(imgPath);
+        relativePath = `uploads/${pdfFilename}`;
+        fileName = pdfFilename;
+        fileType = 'application/pdf';
+        fileSize = pdfBuffer.length;
+        originalName = originalName.replace(/\.[^.]+$/, '.pdf');
+      }
+
+      const result = runQuery(
+        'INSERT INTO document_files (document_id, file_path, file_name, original_name, file_type, file_size, is_scanned, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [docId, relativePath, fileName, originalName, fileType, fileSize, isScanned, req.user.id]
+      );
+      savedFiles.push({ id: result.lastID, file_path: relativePath, file_name: fileName, original_name: originalName, file_type: fileType, file_size: fileSize, is_scanned: isScanned });
+    }
+
+    res.json({ files: savedFiles });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al procesar el archivo. Verifique que la imagen no esté dañada.' });
+  }
 });
 
-router.post('/:id/scan', (req, res) => {
-  const { image_data, file_name } = req.body;
+router.post('/:id/scan', async (req, res) => {
+  const { image_data, file_name, to_pdf } = req.body;
   if (!image_data) return res.status(400).json({ error: 'Datos de imagen requeridos' });
 
   const docId = parseInt(req.params.id);
@@ -178,18 +215,34 @@ router.post('/:id/scan', (req, res) => {
   }
 
   const base64Data = image_data.replace(/^data:image\/\w+;base64,/, '');
-  const buffer = Buffer.from(base64Data, 'base64');
-  const filename = `scan-${Date.now()}.jpg`;
+  const imageBuffer = Buffer.from(base64Data, 'base64');
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+  let buffer, filename, fileType;
+  try {
+    if (to_pdf) {
+      buffer = await imageToPdfBuffer(imageBuffer, 'image/jpeg');
+      filename = `scan-${Date.now()}.pdf`;
+      fileType = 'application/pdf';
+    } else {
+      buffer = imageBuffer;
+      filename = `scan-${Date.now()}.jpg`;
+      fileType = 'image/jpeg';
+    }
+  } catch (err) {
+    return res.status(500).json({ error: 'Error al generar el PDF. Intente capturar la imagen nuevamente.' });
+  }
   fs.writeFileSync(path.join(uploadsDir, filename), buffer);
 
   const relativePath = `uploads/${filename}`;
+  const baseName = (file_name || filename).replace(/\.[^.]+$/, '');
+  const displayName = `${baseName}.${to_pdf ? 'pdf' : 'jpg'}`;
   const result = runQuery(
     'INSERT INTO document_files (document_id, file_path, file_name, original_name, file_type, file_size, is_scanned, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, 1, ?)',
-    [docId, relativePath, filename, file_name || filename, 'image/jpeg', buffer.length, req.user.id]
+    [docId, relativePath, filename, displayName, fileType, buffer.length, req.user.id]
   );
 
-  res.json({ id: result.lastID, file_path: relativePath, file_name: filename, is_scanned: 1 });
+  res.json({ id: result.lastID, file_path: relativePath, file_name: filename, file_type: fileType, is_scanned: 1 });
 });
 
 router.get('/:id/files/:fileId/download', (req, res) => {
