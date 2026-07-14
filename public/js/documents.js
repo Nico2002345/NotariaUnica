@@ -5,6 +5,8 @@ const PAGE_SIZE = 20;
 let currentDocId = null;
 let cameraStream = null;
 let capturedImage = null;
+let originalCapturedImage = null;
+let captureRotation = 0;
 let scanTargetDocId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -339,6 +341,8 @@ function confirmDelete(id) {
 function openScanModal(docId = null) {
   scanTargetDocId = docId;
   capturedImage = null;
+  originalCapturedImage = null;
+  document.getElementById('adjustPanel').classList.add('d-none');
   document.getElementById('capturedPreview').classList.add('d-none');
   document.getElementById('cameraPreview').classList.add('d-none');
   document.getElementById('cameraPlaceholder').classList.remove('d-none');
@@ -404,22 +408,66 @@ function capturePhoto() {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
-  capturedImage = canvas.toDataURL('image/jpeg', 0.93);
+  originalCapturedImage = canvas.toDataURL('image/jpeg', 0.93);
+  captureRotation = 0;
 
   const preview = document.getElementById('capturedPreview');
-  preview.src = capturedImage;
   preview.classList.remove('d-none');
   video.classList.add('d-none');
   document.getElementById('captureBtn').classList.add('d-none');
   document.getElementById('retakeBtn').classList.remove('d-none');
+  document.getElementById('adjustPanel').classList.remove('d-none');
+  resetAdjustments();
 }
 
 function retakePhoto() {
   capturedImage = null;
+  originalCapturedImage = null;
   document.getElementById('capturedPreview').classList.add('d-none');
   document.getElementById('cameraPreview').classList.remove('d-none');
   document.getElementById('captureBtn').classList.remove('d-none');
   document.getElementById('retakeBtn').classList.add('d-none');
+  document.getElementById('adjustPanel').classList.add('d-none');
+}
+
+function rotateCapture(deg) {
+  captureRotation = (captureRotation + deg + 360) % 360;
+  applyImageAdjustments();
+}
+
+function resetAdjustments() {
+  document.getElementById('adjBrightness').value = 100;
+  document.getElementById('adjContrast').value = 100;
+  captureRotation = 0;
+  applyImageAdjustments();
+}
+
+function applyImageAdjustments() {
+  if (!originalCapturedImage) return;
+  const brightness = document.getElementById('adjBrightness').value;
+  const contrast = document.getElementById('adjContrast').value;
+  document.getElementById('brightnessVal').textContent = `${brightness}%`;
+  document.getElementById('contrastVal').textContent = `${contrast}%`;
+
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.getElementById('captureCanvas');
+    const rotated90 = captureRotation === 90 || captureRotation === 270;
+    canvas.width = rotated90 ? img.height : img.width;
+    canvas.height = rotated90 ? img.width : img.height;
+
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate((captureRotation * Math.PI) / 180);
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    ctx.restore();
+
+    capturedImage = canvas.toDataURL('image/jpeg', 0.93);
+    document.getElementById('capturedPreview').src = capturedImage;
+  };
+  img.src = originalCapturedImage;
 }
 
 function stopCamera() {
