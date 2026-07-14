@@ -249,7 +249,10 @@
             <div class="text-center mb-2">
               <video id="cameraPreview" autoplay playsinline class="d-none"></video>
               <canvas id="captureCanvas"></canvas>
-              <img id="capturedPreview" class="d-none" alt="Imagen capturada">
+              <div id="previewWrap" style="position:relative; display:inline-block;">
+                <img id="capturedPreview" class="d-none" alt="Imagen capturada">
+                <div id="cropBox" class="d-none" style="position:absolute; box-sizing:border-box; border:2px dashed #0d6efd; background:rgba(13,110,253,0.15);"></div>
+              </div>
               <div id="cameraPlaceholder" class="border rounded p-5 text-muted">
                 <i class="bi bi-camera fs-1 d-block mb-2"></i>
                 Haga clic en "Iniciar Cámara" para escanear
@@ -264,13 +267,19 @@
 
             <!-- Manual image adjustment panel -->
             <div id="adjustPanel" class="d-none border rounded p-3 mt-3">
-              <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1">
                 <h6 class="mb-0 small fw-bold"><i class="bi bi-sliders me-1"></i>Ajustar Imagen</h6>
                 <div class="d-flex gap-1">
+                  <button class="btn btn-sm btn-outline-primary" id="cropToggleBtn" onclick="toggleCropMode()" title="Recortar"><i class="bi bi-crop"></i> Recortar</button>
                   <button class="btn btn-sm btn-outline-secondary" onclick="rotateCapture(-90)" title="Rotar izquierda"><i class="bi bi-arrow-counterclockwise"></i></button>
                   <button class="btn btn-sm btn-outline-secondary" onclick="rotateCapture(90)" title="Rotar derecha"><i class="bi bi-arrow-clockwise"></i></button>
                   <button class="btn btn-sm btn-outline-secondary" onclick="resetAdjustments()" title="Restablecer">Restablecer</button>
                 </div>
+              </div>
+              <div id="cropActions" class="d-none mb-2 d-flex gap-2 justify-content-center">
+                <small class="text-muted align-self-center">Arrastre sobre la imagen para marcar el área a conservar</small>
+                <button class="btn btn-sm btn-primary" onclick="applyCrop()"><i class="bi bi-check-lg me-1"></i>Aplicar Recorte</button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="cancelCropMode()">Cancelar</button>
               </div>
               <div class="row g-2">
                 <div class="col-6">

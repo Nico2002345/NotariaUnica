@@ -8,6 +8,9 @@ let capturedImage = null;
 let originalCapturedImage = null;
 let captureRotation = 0;
 let scanTargetDocId = null;
+let cropping = false;
+let cropDragging = false;
+let cropStart = { x: 0, y: 0 };
 
 document.addEventListener('DOMContentLoaded', async () => {
   const user = requireAuth();
@@ -342,6 +345,7 @@ function openScanModal(docId = null) {
   scanTargetDocId = docId;
   capturedImage = null;
   originalCapturedImage = null;
+  cancelCropMode();
   document.getElementById('adjustPanel').classList.add('d-none');
   document.getElementById('capturedPreview').classList.add('d-none');
   document.getElementById('cameraPreview').classList.add('d-none');
@@ -423,6 +427,7 @@ function capturePhoto() {
 function retakePhoto() {
   capturedImage = null;
   originalCapturedImage = null;
+  cancelCropMode();
   document.getElementById('capturedPreview').classList.add('d-none');
   document.getElementById('cameraPreview').classList.remove('d-none');
   document.getElementById('captureBtn').classList.remove('d-none');
@@ -468,6 +473,93 @@ function applyImageAdjustments() {
     document.getElementById('capturedPreview').src = capturedImage;
   };
   img.src = originalCapturedImage;
+}
+
+// ===== CROP =====
+function toggleCropMode() {
+  if (cropping) { cancelCropMode(); return; }
+  if (!capturedImage) return;
+  cropping = true;
+  document.getElementById('cropToggleBtn').classList.replace('btn-outline-primary', 'btn-primary');
+  document.getElementById('cropActions').classList.remove('d-none');
+  const wrap = document.getElementById('previewWrap');
+  wrap.addEventListener('pointerdown', onCropPointerDown);
+  wrap.addEventListener('pointermove', onCropPointerMove);
+  window.addEventListener('pointerup', onCropPointerUp);
+}
+
+function cancelCropMode() {
+  cropping = false;
+  cropDragging = false;
+  const toggleBtn = document.getElementById('cropToggleBtn');
+  if (toggleBtn) toggleBtn.classList.replace('btn-primary', 'btn-outline-primary');
+  const cropActions = document.getElementById('cropActions');
+  if (cropActions) cropActions.classList.add('d-none');
+  const cropBox = document.getElementById('cropBox');
+  if (cropBox) cropBox.classList.add('d-none');
+  const wrap = document.getElementById('previewWrap');
+  if (wrap) {
+    wrap.removeEventListener('pointerdown', onCropPointerDown);
+    wrap.removeEventListener('pointermove', onCropPointerMove);
+  }
+  window.removeEventListener('pointerup', onCropPointerUp);
+}
+
+function onCropPointerDown(e) {
+  if (!cropping) return;
+  const rect = document.getElementById('previewWrap').getBoundingClientRect();
+  cropStart = {
+    x: Math.min(Math.max(e.clientX - rect.left, 0), rect.width),
+    y: Math.min(Math.max(e.clientY - rect.top, 0), rect.height)
+  };
+  cropDragging = true;
+  const box = document.getElementById('cropBox');
+  box.style.left = `${cropStart.x}px`;
+  box.style.top = `${cropStart.y}px`;
+  box.style.width = '0px';
+  box.style.height = '0px';
+  box.classList.remove('d-none');
+}
+
+function onCropPointerMove(e) {
+  if (!cropping || !cropDragging) return;
+  const rect = document.getElementById('previewWrap').getBoundingClientRect();
+  const x = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
+  const y = Math.min(Math.max(e.clientY - rect.top, 0), rect.height);
+  const box = document.getElementById('cropBox');
+  box.style.left = `${Math.min(cropStart.x, x)}px`;
+  box.style.top = `${Math.min(cropStart.y, y)}px`;
+  box.style.width = `${Math.abs(x - cropStart.x)}px`;
+  box.style.height = `${Math.abs(y - cropStart.y)}px`;
+}
+
+function onCropPointerUp() {
+  cropDragging = false;
+}
+
+function applyCrop() {
+  const box = document.getElementById('cropBox');
+  const boxWidth = parseFloat(box.style.width) || 0;
+  const boxHeight = parseFloat(box.style.height) || 0;
+  if (boxWidth < 10 || boxHeight < 10) { showToast('Marque un área más grande para recortar', 'error'); return; }
+
+  const img = document.getElementById('capturedPreview');
+  const scaleX = img.naturalWidth / img.clientWidth;
+  const scaleY = img.naturalHeight / img.clientHeight;
+  const sx = parseFloat(box.style.left) * scaleX;
+  const sy = parseFloat(box.style.top) * scaleY;
+  const sw = boxWidth * scaleX;
+  const sh = boxHeight * scaleY;
+
+  const canvas = document.getElementById('captureCanvas');
+  canvas.width = sw;
+  canvas.height = sh;
+  canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+  originalCapturedImage = canvas.toDataURL('image/jpeg', 0.93);
+  captureRotation = 0;
+  cancelCropMode();
+  resetAdjustments();
 }
 
 function stopCamera() {
