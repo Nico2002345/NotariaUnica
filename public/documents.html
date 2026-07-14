@@ -249,9 +249,14 @@
             <div class="text-center mb-2">
               <video id="cameraPreview" autoplay playsinline class="d-none"></video>
               <canvas id="captureCanvas"></canvas>
-              <div id="previewWrap" style="position:relative; display:inline-block;">
+              <div id="previewWrap" style="position:relative; display:inline-block; touch-action:none;">
                 <img id="capturedPreview" class="d-none" alt="Imagen capturada">
-                <div id="cropBox" class="d-none" style="position:absolute; box-sizing:border-box; border:2px dashed #0d6efd; background:rgba(13,110,253,0.15);"></div>
+                <div id="cropBox" class="d-none" style="position:absolute; box-sizing:border-box; border:2px dashed #0d6efd; background:rgba(13,110,253,0.15); cursor:move; touch-action:none;">
+                  <div class="crop-handle" data-handle="nw" style="position:absolute; left:-8px; top:-8px; width:16px; height:16px; background:#0d6efd; border:2px solid #fff; border-radius:50%; cursor:nwse-resize;"></div>
+                  <div class="crop-handle" data-handle="ne" style="position:absolute; right:-8px; top:-8px; width:16px; height:16px; background:#0d6efd; border:2px solid #fff; border-radius:50%; cursor:nesw-resize;"></div>
+                  <div class="crop-handle" data-handle="sw" style="position:absolute; left:-8px; bottom:-8px; width:16px; height:16px; background:#0d6efd; border:2px solid #fff; border-radius:50%; cursor:nesw-resize;"></div>
+                  <div class="crop-handle" data-handle="se" style="position:absolute; right:-8px; bottom:-8px; width:16px; height:16px; background:#0d6efd; border:2px solid #fff; border-radius:50%; cursor:nwse-resize;"></div>
+                </div>
               </div>
               <div id="cameraPlaceholder" class="border rounded p-5 text-muted">
                 <i class="bi bi-camera fs-1 d-block mb-2"></i>

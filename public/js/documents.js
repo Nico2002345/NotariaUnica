@@ -9,8 +9,10 @@ let originalCapturedImage = null;
 let captureRotation = 0;
 let scanTargetDocId = null;
 let cropping = false;
-let cropDragging = false;
+let cropDragMode = null;
 let cropStart = { x: 0, y: 0 };
+let cropRect = null;
+let cropRectStart = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const user = requireAuth();
@@ -482,15 +484,21 @@ function toggleCropMode() {
   cropping = true;
   document.getElementById('cropToggleBtn').classList.replace('btn-outline-primary', 'btn-primary');
   document.getElementById('cropActions').classList.remove('d-none');
+
+  const rect = document.getElementById('previewWrap').getBoundingClientRect();
+  cropRect = { x: rect.width * 0.1, y: rect.height * 0.1, w: rect.width * 0.8, h: rect.height * 0.8 };
+  renderCropBox();
+
   const wrap = document.getElementById('previewWrap');
   wrap.addEventListener('pointerdown', onCropPointerDown);
-  wrap.addEventListener('pointermove', onCropPointerMove);
+  window.addEventListener('pointermove', onCropPointerMove);
   window.addEventListener('pointerup', onCropPointerUp);
 }
 
 function cancelCropMode() {
   cropping = false;
-  cropDragging = false;
+  cropDragMode = null;
+  cropRect = null;
   const toggleBtn = document.getElementById('cropToggleBtn');
   if (toggleBtn) toggleBtn.classList.replace('btn-primary', 'btn-outline-primary');
   const cropActions = document.getElementById('cropActions');
@@ -498,58 +506,103 @@ function cancelCropMode() {
   const cropBox = document.getElementById('cropBox');
   if (cropBox) cropBox.classList.add('d-none');
   const wrap = document.getElementById('previewWrap');
-  if (wrap) {
-    wrap.removeEventListener('pointerdown', onCropPointerDown);
-    wrap.removeEventListener('pointermove', onCropPointerMove);
-  }
+  if (wrap) wrap.removeEventListener('pointerdown', onCropPointerDown);
+  window.removeEventListener('pointermove', onCropPointerMove);
   window.removeEventListener('pointerup', onCropPointerUp);
+}
+
+function renderCropBox() {
+  const box = document.getElementById('cropBox');
+  if (!cropRect) { box.classList.add('d-none'); return; }
+  box.classList.remove('d-none');
+  box.style.left = `${cropRect.x}px`;
+  box.style.top = `${cropRect.y}px`;
+  box.style.width = `${cropRect.w}px`;
+  box.style.height = `${cropRect.h}px`;
 }
 
 function onCropPointerDown(e) {
   if (!cropping) return;
-  const rect = document.getElementById('previewWrap').getBoundingClientRect();
-  cropStart = {
-    x: Math.min(Math.max(e.clientX - rect.left, 0), rect.width),
-    y: Math.min(Math.max(e.clientY - rect.top, 0), rect.height)
-  };
-  cropDragging = true;
-  const box = document.getElementById('cropBox');
-  box.style.left = `${cropStart.x}px`;
-  box.style.top = `${cropStart.y}px`;
-  box.style.width = '0px';
-  box.style.height = '0px';
-  box.classList.remove('d-none');
+  const wrap = document.getElementById('previewWrap');
+  const rect = wrap.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+  const handle = e.target.closest && e.target.closest('.crop-handle');
+  const insideBox = cropRect && px >= cropRect.x && px <= cropRect.x + cropRect.w && py >= cropRect.y && py <= cropRect.y + cropRect.h;
+
+  cropStart = { x: px, y: py };
+
+  if (handle) {
+    cropDragMode = `resize-${handle.dataset.handle}`;
+    cropRectStart = { ...cropRect };
+  } else if (insideBox) {
+    cropDragMode = 'move';
+    cropRectStart = { ...cropRect };
+  } else {
+    cropDragMode = 'draw';
+    const x = Math.min(Math.max(px, 0), rect.width);
+    const y = Math.min(Math.max(py, 0), rect.height);
+    cropRect = { x, y, w: 0, h: 0 };
+  }
+  e.preventDefault();
 }
 
 function onCropPointerMove(e) {
-  if (!cropping || !cropDragging) return;
+  if (!cropping || !cropDragMode) return;
   const rect = document.getElementById('previewWrap').getBoundingClientRect();
-  const x = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
-  const y = Math.min(Math.max(e.clientY - rect.top, 0), rect.height);
-  const box = document.getElementById('cropBox');
-  box.style.left = `${Math.min(cropStart.x, x)}px`;
-  box.style.top = `${Math.min(cropStart.y, y)}px`;
-  box.style.width = `${Math.abs(x - cropStart.x)}px`;
-  box.style.height = `${Math.abs(y - cropStart.y)}px`;
+  const px = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
+  const py = Math.min(Math.max(e.clientY - rect.top, 0), rect.height);
+  const dx = px - cropStart.x;
+  const dy = py - cropStart.y;
+  const minSize = 20;
+
+  if (cropDragMode === 'draw') {
+    cropRect = { x: Math.min(cropStart.x, px), y: Math.min(cropStart.y, py), w: Math.abs(px - cropStart.x), h: Math.abs(py - cropStart.y) };
+  } else if (cropDragMode === 'move') {
+    let x = cropRectStart.x + dx;
+    let y = cropRectStart.y + dy;
+    x = Math.min(Math.max(x, 0), rect.width - cropRectStart.w);
+    y = Math.min(Math.max(y, 0), rect.height - cropRectStart.h);
+    cropRect = { ...cropRectStart, x, y };
+  } else if (cropDragMode.startsWith('resize-')) {
+    const handle = cropDragMode.replace('resize-', '');
+    let { x, y, w, h } = cropRectStart;
+
+    if (handle.includes('w')) {
+      const newX = Math.max(0, Math.min(x + dx, x + w - minSize));
+      w = (x + w) - newX;
+      x = newX;
+    }
+    if (handle.includes('e')) {
+      w = Math.min(Math.max(minSize, w + dx), rect.width - x);
+    }
+    if (handle.includes('n')) {
+      const newY = Math.max(0, Math.min(y + dy, y + h - minSize));
+      h = (y + h) - newY;
+      y = newY;
+    }
+    if (handle.includes('s')) {
+      h = Math.min(Math.max(minSize, h + dy), rect.height - y);
+    }
+    cropRect = { x, y, w, h };
+  }
+  renderCropBox();
 }
 
 function onCropPointerUp() {
-  cropDragging = false;
+  cropDragMode = null;
 }
 
 function applyCrop() {
-  const box = document.getElementById('cropBox');
-  const boxWidth = parseFloat(box.style.width) || 0;
-  const boxHeight = parseFloat(box.style.height) || 0;
-  if (boxWidth < 10 || boxHeight < 10) { showToast('Marque un área más grande para recortar', 'error'); return; }
+  if (!cropRect || cropRect.w < 10 || cropRect.h < 10) { showToast('Marque un área más grande para recortar', 'error'); return; }
 
   const img = document.getElementById('capturedPreview');
   const scaleX = img.naturalWidth / img.clientWidth;
   const scaleY = img.naturalHeight / img.clientHeight;
-  const sx = parseFloat(box.style.left) * scaleX;
-  const sy = parseFloat(box.style.top) * scaleY;
-  const sw = boxWidth * scaleX;
-  const sh = boxHeight * scaleY;
+  const sx = cropRect.x * scaleX;
+  const sy = cropRect.y * scaleY;
+  const sw = cropRect.w * scaleX;
+  const sh = cropRect.h * scaleY;
 
   const canvas = document.getElementById('captureCanvas');
   canvas.width = sw;
