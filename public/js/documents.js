@@ -377,7 +377,7 @@ function switchScanTab(tab, el) {
 
 async function startCamera() {
   const highResConstraints = {
-    video: { facingMode: 'environment', width: { ideal: 7680 }, height: { ideal: 4320 } },
+    video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
     audio: false
   };
   try {
@@ -403,10 +403,8 @@ function capturePhoto() {
   const canvas = document.getElementById('captureCanvas');
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.filter = 'contrast(1.15) saturate(1.1) brightness(1.03)';
-  ctx.drawImage(video, 0, 0);
-  capturedImage = canvas.toDataURL('image/jpeg', 1.0);
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  capturedImage = canvas.toDataURL('image/jpeg', 0.9);
 
   const preview = document.getElementById('capturedPreview');
   preview.src = capturedImage;
